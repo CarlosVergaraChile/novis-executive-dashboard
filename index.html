@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novis AI Core - Executive Dashboard</title>
+    <style>
+        :root {
+            --primary: #1E3A8A;
+            --secondary: #0EA5E9;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; color: #1f2937; }
+        .header { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
+        .card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin: 1rem 0; }
+        .kpi { display: inline-block; width: 22%; margin: 1%; text-align: center; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .kpi-value { font-size: 2.5rem; font-weight: 800; color: var(--primary); margin: 0.5rem 0; }
+        .btn { background: var(--primary); color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; margin: 0.5rem; font-weight: 600; }
+        .btn:hover { background: var(--secondary); }
+        .error { color: var(--danger); padding: 1rem; background: #FEE2E2; border-radius: 8px; margin: 1rem 0; }
+        .success { color: var(--success); padding: 1rem; background: #D1FAE5; border-radius: 8px; margin: 1rem 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>NOVIS AI CORE - Executive Dashboard</h1>
+        <p>Business Intelligence Real-Time</p>
+    </div>
+    
+    <div class="container">
+        <h2>KPI Dashboard</h2>
+        
+        <div>
+            <div class="kpi">
+                <h3>Total Executions</h3>
+                <div class="kpi-value" id="executions">-</div>
+                <p>Last 24 Hours</p>
+            </div>
+            
+            <div class="kpi">
+                <h3>Time Saved</h3>
+                <div class="kpi-value" id="timeSaved">-</div>
+                <p>Hours (Month)</p>
+            </div>
+            
+            <div class="kpi">
+                <h3>Cost Savings</h3>
+                <div class="kpi-value" id="costSavings">-</div>
+                <p>USD Monthly</p>
+            </div>
+            
+            <div class="kpi">
+                <h3>ROI %</h3>
+                <div class="kpi-value" id="roi">-</div>
+                <p>Return on Investment</p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Top Workflows</h2>
+            <table id="workflowTable" style="width:100%; border-collapse: collapse; margin-top: 1rem;">
+                <thead style="background: #f9fafb; border-bottom: 2px solid #e5e7eb;">
+                    <tr>
+                        <th style="padding: 1rem; text-align: left;">Workflow Name</th>
+                        <th style="padding: 1rem; text-align: left;">Executions</th>
+                        <th style="padding: 1rem; text-align: left;">Avg Time (ms)</th>
+                    </tr>
+                </thead>
+                <tbody id="workflowBody"></tbody>
+            </table>
+        </div>
+        
+        <div class="card">
+            <h3>System Status</h3>
+            <p id="status">Loading...</p>
+            <p id="lastUpdate">-</p>
+        </div>
+        
+        <div>
+            <button class="btn" onclick="fetchData()">Refresh Dashboard</button>
+            <button class="btn" onclick="toggleDemo()">Toggle Demo Mode</button>
+        </div>
+        
+        <div id="message"></div>
+    </div>
+    
+    <script>
+        // CONFIGURACIÓN
+        const API_URL = 'https://orquesta.app.n8n.cloud/webhook/executive-metrics';
+        const API_KEY = 'NOVIS_EXEC_DASHBOARD_KEY';
+        let demoMode = false;
+        
+        // Datos Demo
+        const demoData = {
+            status: 'OK',
+            timestamp: new Date().toISOString(),
+            business_metrics: {
+                total_executions_24h: 347,
+                estimated_time_saved_hours: 29,
+                estimated_cost_savings_usd: 1450,
+                roi_percentage: 7150
+            },
+            popular_workflows: [
+                { name: 'Email Automation', executions: 120, avg_time_ms: 850 },
+                { name: 'Data Sync', executions: 95, avg_time_ms: 1200 },
+                { name: 'Report Generator', executions: 67, avg_time_ms: 2100 },
+                { name: 'Customer Onboarding', executions: 45, avg_time_ms: 950 }
+            ]
+        };
+        
+        async function fetchData() {
+            const messageEl = document.getElementById('message');
+            const btn = event.target;
+            btn.disabled = true;
+            
+            try {
+                let data;
+                
+                if (demoMode) {
+                    data = demoData;
+                } else {
+                    const response = await fetch(API_URL, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'x-api-key': API_KEY
+                        }
+                    });
+                    
+                    if (!response.ok) throw new Error('API Error');
+                    data = await response.json();
+                }
+                
+                // Actualizar KPIs
+                const metrics = data.business_metrics;
+                document.getElementById('executions').textContent = metrics.total_executions_24h.toLocaleString();
+                document.getElementById('timeSaved').textContent = metrics.estimated_time_saved_hours + 'h';
+                document.getElementById('costSavings').textContent = '$' + metrics.estimated_cost_savings_usd.toLocaleString();
+                document.getElementById('roi').textContent = metrics.roi_percentage + '%';
+                
+                // Actualizar tabla de workflows
+                const tbody = document.getElementById('workflowBody');
+                tbody.innerHTML = '';
+                data.popular_workflows.forEach(wf => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${wf.name}</td>
+                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${wf.executions}</td>
+                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${wf.avg_time_ms}ms</td>
+                    `;
+                });
+                
+                // Status
+                document.getElementById('status').textContent = `Status: ${data.status} ✓`;
+                document.getElementById('lastUpdate').textContent = `Last update: ${new Date(data.timestamp).toLocaleTimeString()}`;
+                
+                messageEl.innerHTML = '<div class="success">Data loaded successfully (' + (demoMode ? 'DEMO' : 'LIVE') + ')</div>';
+            } catch (error) {
+                messageEl.innerHTML = '<div class="error">Error loading data. Make sure API key is correct. Try demo mode.</div>';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
+        function toggleDemo() {
+            demoMode = !demoMode;
+            document.querySelector('button:nth-of-type(2)').textContent = demoMode ? 'Disable Demo Mode' : 'Enable Demo Mode';
+            fetchData();
+        }
+        
+        // Cargar datos al iniciar
+        window.addEventListener('load', () => {
+            demoMode = true;
+            fetchData();
+        });
+    </script>
+</body>
+</html>
