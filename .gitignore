@@ -1,0 +1,39 @@
+# Configuration files with secrets
+config.prod.js
+config.staging.js
+config.dev.js
+.env
+.env.local
+.env.*.local
+
+# Node modules
+node_modules/
+package-lock.json
+yarn.lock
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs and debugging
+*.log
+logs/
+.debug
+
+# Build artifacts
+dist/
+build/
+*.min.js
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Local environment
+.env.local
+.env.*.local
