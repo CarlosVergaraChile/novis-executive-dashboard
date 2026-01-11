@@ -32,6 +32,20 @@
         <p>Business Intelligence Real-Time</p>
     </div>
     
+        <!-- Health & Status Section -->
+        <div id="health-status" class="health-section" style="background: #f0f8f0; border-left: 4px solid #10b981; padding: 12px 16px; margin-bottom: 24px; border-radius: 4px; font-size: 13px; color: #333;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span id="health-indicator" style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #10b981; margin-right: 8px;"></span>
+              <span id="health-text">Sistema saludable</span>
+            </div>
+            <div style="text-align: right;">
+              <div id="last-update" style="color: #666; margin-bottom: 4px;">Última actualización: nunca</div>
+              <div id="latency-info" style="color: #999; font-size: 12px;">Latencia: -- ms | Modo: <span style="display: inline-block; padding: 2px 6px; background: #dbeafe; color: #0c4a6e; border-radius: 3px; font-weight: bold; font-size: 11px;">DEMO</span></div>
+            </div>
+          </div>
+        </div>
+    
     <div class="container">
         <h2>KPI Dashboard</h2>
         
@@ -178,6 +192,124 @@
             demoMode = true;
             fetchData();
         });
+        
+// DashboardHealth: Monitoreo de salud del webhook y sistema
+class DashboardHealth {
+  constructor(config) {
+    this.config = config || {};
+    this.lastUpdateTime = null;
+    this.lastLatency = null;
+    this.webhookStatus = 'unknown';
+    this.isDemoMode = false;
+  }
+
+  async checkHealth() {
+    if (!this.config.features?.healthCheckEnabled) return;
+    try {
+      const startTime = performance.now();
+      const response = await fetch(
+        `${this.config.api.baseUrl}${this.config.api.endpoint}`,
+        {
+          method: 'GET',
+          headers: {
+            [this.config.auth.headerName]: this.config.auth.apiKey,
+            'x-correlation-id': this.generateCorrelationId()
+          },
+          timeout: this.config.api.timeout || 10000
+        }
+      );
+
+      const latency = performance.now() - startTime;
+      this.lastLatency = latency;
+
+      if (response.ok) {
+        const data = await response.json();
+        this.webhookStatus = data.health?.webhook_status || 'healthy';
+        this.lastUpdateTime = new Date(data.timestamp);
+        this.isDemoMode = false;
+        this.updateHealthUI('healthy', latency);
+      } else {
+        this.webhookStatus = 'error';
+        this.updateHealthUI('error', latency);
+        this.activateDemoMode();
+      }
+    } catch (error) {
+      console.error('[Dashboard Health Check] Failed:', error);
+      this.webhookStatus = 'error';
+      this.updateHealthUI('error', null);
+      this.activateDemoMode();
+    }
+  }
+
+  updateHealthUI(status, latency) {
+    const indicator = document.getElementById('health-indicator');
+    const text = document.getElementById('health-text');
+    const latencyInfo = document.getElementById('latency-info');
+    const lastUpdate = document.getElementById('last-update');
+
+    if (!indicator) return;
+
+    const statusColors = {
+      healthy: { bg: '#10b981', text: 'Sistema saludable ✓' },
+      degraded: { bg: '#f59e0b', text: 'Sistema degradado ⚠️' },
+      error: { bg: '#ef4444', text: 'Error en conexión ✗' }
+    };
+
+    const current = statusColors[status] || statusColors.error;
+    indicator.style.background = current.bg;
+    text.textContent = current.text;
+
+    if (latency !== null && latencyInfo) {
+      const modeBg = this.isDemoMode ? '#fed7aa' : '#dbeafe';
+      const modeColor = this.isDemoMode ? '#92400e' : '#0c4a6e';
+      latencyInfo.innerHTML = `Latencia: ${latency.toFixed(0)} ms | Modo: <span style="display: inline-block; padding: 2px 6px; background: ${modeBg}; color: ${modeColor}; border-radius: 3px; font-weight: bold; font-size: 11px;">${this.isDemoMode ? 'DEMO' : 'REAL'}</span>`;
+    }
+
+    if (this.lastUpdateTime && lastUpdate) {
+      lastUpdate.textContent = `Última actualización: ${this.lastUpdateTime.toLocaleString('es-CL')}`;
+    }
+  }
+
+  activateDemoMode() {
+    console.warn('[Dashboard] Activando Demo Mode (datos de ejemplo)');
+    this.isDemoMode = true;
+  }
+
+  generateCorrelationId() {
+    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+}
+
+// Inicializar health check cuando el DOM está listo
+document.addEventListener('DOMContentLoaded', async () => {
+  const config = window.NOVIS_CONFIG || getDefaultConfig();
+  window.dashboardHealth = new DashboardHealth(config);
+  await window.dashboardHealth.checkHealth();
+  
+  if (config.features?.healthCheckEnabled) {
+    setInterval(() => window.dashboardHealth.checkHealth(), config.features.healthCheckIntervalMs || 60000);
+  }
+});
+
+function getDefaultConfig() {
+  return {
+    api: {
+      baseUrl: 'http://localhost:5678',
+      endpoint: '/webhook/executive-metrics',
+      timeout: 10000
+    },
+    auth: {
+      apiKey: 'demo_key_12345',
+      headerName: 'x-api-key'
+    },
+    features: {
+      demoMode: true,
+      healthCheckEnabled: true,
+      healthCheckIntervalMs: 60000
+    },
+    logging: { level: 'info' }
+  };
+}
     </script>
 </body>
 </html>
